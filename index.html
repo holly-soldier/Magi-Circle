@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ルーン魔法陣コンストラクター</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#101222">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    body {
+      margin: 0; padding: 10px;
+      background-color: #101222; color: #fff;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+    }
+    h1 { font-size: 1.3rem; margin: 5px 0; color: #e94560; text-shadow: 0 0 8px rgba(233, 69, 96, 0.5); letter-spacing: 2px; }
+    
+    /* キャンバスコンテナ */
+    .canvas-container {
+      position: relative; margin: 10px 0;
+    }
+    canvas {
+      background-color: #161a36;
+      border: 2px solid #e94560;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+      touch-action: none;
+    }
+
+    /* コントロールパネル */
+    .controls {
+      display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 360px; margin-bottom: 10px;
+    }
+    .btn {
+      background: #0f3460; color: #fff; border: 1px solid #e94560;
+      padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:active { background: #e94560; }
+    .btn-danger { border-color: #ff4a4a; color: #ff4a4a; }
+    .btn-danger:active { background: #ff4a4a; color: #fff; }
+    
+    select {
+      background: #0f3460; color: #fff; border: 1px solid #e94560;
+      padding: 6px; font-size: 0.85rem; border-radius: 4px; outline: none;
+    }
+
+    /* パレットエリア */
+    .palette-title { font-size: 0.85rem; color: #8a95a5; margin: 5px 0 2px 0; align-self: flex-start; max-width: 360px; width: 100%; }
+    .palette {
+      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+      width: 100%; max-width: 360px; background: rgba(15, 52, 96, 0.4);
+      padding: 8px; border-radius: 8px; border: 1px solid rgba(233, 69, 96, 0.2);
+      margin-bottom: 15px; max-height: 120px; overflow-y: auto;
+    }
+    .rune-btn {
+      background: #1f4068; color: #fff; border: 1px solid #436084;
+      width: 36px; height: 36px; font-size: 1.2rem; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .rune-btn:active { background: #e94560; border-color: #fff; }
+
+    /* ステータス・鑑定エリア */
+    .dashboard {
+      width: 100%; max-width: 360px; background: #161a36;
+      border: 1px solid #0f3460; border-radius: 8px; padding: 12px;
+      font-size: 0.9rem; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+    .dash-section { margin-bottom: 8px; }
+    .dash-section:last-child { margin-bottom: 0; }
+    .dash-title { color: #e94560; font-weight: bold; font-size: 0.85rem; border-bottom: 1px solid rgba(233, 69, 96, 0.3); padding-bottom: 2px; margin-bottom: 4px; }
+    
+    /* 属性グラフレイアウト */
+    .element-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .element-tag {
+      font-size: 0.75rem; padding: 2px 6px; border-radius: 3px; background: #222;
+    }
+    .el-火 { background: #66101f; color: #ff7675; border: 1px solid #e94560; }
+    .el-土 { background: #4a3728; color: #eccc68; border: 1px solid #ffa502; }
+    .el-風 { background: #1e3d59; color: #70a1ff; border: 1px solid #1e90ff; }
+    .el-水 { background: #0a3d62; color: #7bed9f; border: 1px solid #2ed573; }
+    .el-氷 { background: #2f3640; color: #dff9fb; border: 1px solid #c7ecee; }
+
+    .meaning-list {
+      max-height: 100px; overflow-y: auto; padding-left: 15px; margin: 4px 0;
+      font-size: 0.8rem; color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>RUNE CONSTRUCTOR</h1>
+  
+  <div class="canvas-container">
+    <canvas id="magicCanvas" width="340" height="340"></canvas>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="btnAlign">円形整列</button>
+    <select id="selectTheme">
+      <option value="">-- テーマから自動構築 --</option>
+      <option value="protection">絶対守護の陣</option>
+      <option value="wealth">豊穣と繁栄の陣</option>
+      <option value="wisdom">叡智獲得の陣</option>
+      <option value="power">力と変革の陣</option>
+    </select>
+    <button class="btn btn-danger" id="btnDelete">選択消去</button>
+    <button class="btn btn-danger" id="btnClear">全消去</button>
+  </div>
+
+  <div class="palette-title">ルーン刻印パレット (タップで中央に配置)</div>
+  <div class="palette" id="palette"></div>
+
+  <div class="dashboard">
+    <div class="dash-section">
+      <div class="dash-title">魔術的出力（属性比率）</div>
+      <div class="element-grid" id="elementGrid">有効な展開はありません</div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-title">構成ルーンの意味（帰納的鑑定）</div>
+      <ul class="meaning-list" id="meaningList">刻印されたルーンはありません</ul>
+    </div>
+  </div>
+
+  <script>
+    // ゲルマン共通ルーン24文字の完全データ
+    const RUNE_DATA = [
+      { id: "fehu", char: "ᚠ", name: "フェフ", meaning: "豊穣・財産・始まり", element: "火" },
+      { id: "uruz", char: "ᚢ", name: "ウルズ", meaning: "生命力・野生・勇気", element: "土" },
+      { id: "thurisaz", char: "ᚦ", name: "スリサズ", meaning: "抵抗・破壊・防衛", element: "火" },
+      { id: "ansuz", char: "ᚨ", name: "アンスズ", meaning: "神・知恵・言葉", element: "風" },
+      { id: "raidho", char: "ᚱ", name: "ライゾ", meaning: "旅・変化・移動", element: "火" },
+      { id: "kenaz", char: "ᚲ", name: "ケナズ", meaning: "松明・情熱・創造", element: "火" },
+      { id: "gebo", char: "ᚷ", name: "ゲーボ", meaning: "贈り物・愛・結合", element: "風" },
+      { id: "wunjo", char: "ᚹ", name: "ウンジョー", meaning: "喜び・幸福・調和", element: "風" },
+      { id: "hagalaz", char: "ᚺ", name: "ハガラズ", meaning: "雹・不意の破壊・制限", element: "氷" },
+      { id: "nauthiz", char: "ᚾ", name: "ナウシズ", meaning: "必要・欠乏・忍耐", element: "火" },
+      { id: "isaz", char: "ᛁ", name: "イサズ", meaning: "氷・静止・集中", element: "氷" },
+      { id: "jera", char: "ᛃ", name: "ジェラ", meaning: "収穫・結果・周期", element: "土" },
+      { id: "eihwaz", char: "ᛇ", name: "エイワズ", meaning: "死と再生・不朽", element: "土" },
+      { id: "perthro", char: "ᛈ", name: "ペルソ", meaning: "秘密・運命・偶然", element: "水" },
+      { id: "algiz", char: "ᛉ", name: "アルギズ", meaning: "保護・防衛・守護", element: "風" },
+      { id: "sowilo", char: "ᛋ", name: "ソウィロ", meaning: "太陽・勝利・成功", element: "火" },
+      { id: "tiwaz", char: "ᛏ", name: "ティワズ", meaning: "戦神・正義・勝利", element: "火" },
+      { id: "berkanan", char: "ᛒ", name: "ベルカナ", meaning: "誕生・母性・成長", element: "土" },
+      { id: "ehwaz", char: "ᛖ", name: "エヴァズ", meaning: "馬・前進・信頼", element: "土" },
+      { id: "mannaz", char: "ᛗ", name: "マナズ", meaning: "人間・自己・絆", element: "風" },
+      { id: "laguz", char: "ᛚ", name: "ラグズ", meaning: "水・直感・流動", element: "水" },
+      { id: "ingwaz", char: "ᛜ", name: "イングズ", meaning: "豊穣神・完了・内なる力", element: "水" },
+      { id: "othala", char: "ᛟ", name: "オサラ", meaning: "故郷・遺産・伝統", element: "土" },
+      { id: "dagaz", char: "ᛞ", name: "ダガズ", meaning: "一日・光・夜明け", element: "火" }
+    ];
+
+    // テーマ定義 (属性・現象から構築する用)
+    const THEMES = {
+      protection: ["algiz", "sowilo", "tiwaz", "isaz"],
+      wealth: ["fehu", "jera", "othala", "gebo"],
+      wisdom: ["ansuz", "mannaz", "perthro", "dagaz"],
+      power: ["uruz", "thurisaz", "raidho", "kenaz"]
+    };
+
+    const canvas = document.getElementById("magicCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    let activeRunes = [];
+    let draggingRune = null;
+    let selectedRune = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    // パレット生成
+    const palette = document.getElementById("palette");
+    RUNE_DATA.forEach(rune => {
+      const btn = document.createElement("button");
+      btn.className = "rune-btn";
+      btn.textContent = rune.char;
+      btn.onclick = () => addRune(rune);
+      palette.appendChild(btn);
+    });
+
+    // ルーン追加
+    function addRune(runeData) {
+      const rune = {
+        ...runeData,
+        x: canvas.width / 2 + (Math.random() * 20 - 10),
+        y: canvas.height / 2 + (Math.random() * 20 - 10),
+        size: 28,
+        rotation: 0
+      };
+      activeRunes.push(rune);
+      selectedRune = rune;
+      draw();
+      updateDashboard();
+    }
+
+    // 描画
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      // 魔法陣背景の幾何学ライン
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(233, 69, 96, 0.4)";
+      
+      // 外円
+      ctx.beginPath(); ctx.arc(cx, cy, 155, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke();
+      // 内円
+      ctx.beginPath(); ctx.arc(cx, cy, 125, 0, Math.PI * 2); ctx.lineWidth = 1; ctx.stroke();
+      // 中心装飾（四角形交差）
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.strokeStyle = "rgba(15, 52, 96, 0.3)";
+      ctx.strokeRect(-80, -80, 160, 160);
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-80, -80, 160, 160);
+      ctx.restore();
+
+      // ルーンの描画
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      activeRunes.forEach(rune => {
+        ctx.save();
+        ctx.translate(rune.x, rune.y);
+        ctx.rotate(rune.rotation);
+        
+        // 選択中か通常かで発光エフェクトを切り替え
+        if (rune === selectedRune) {
+          ctx.shadowColor = "#e94560";
+          ctx.shadowBlur = 15;
+          ctx.fillStyle = "#ffffff";
+          // 選択インジケータ（うっすら円）
+          ctx.beginPath();
+          ctx.arc(0, 0, rune.size * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(233, 69, 96, 0.15)";
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+        } else {
+          ctx.shadowColor = "#00f0ff";
+          ctx.shadowBlur = 4;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        }
+        
+        ctx.font = `${rune.size}px sans-serif`;
+        ctx.fillText(rune.char, 0, 0);
+        ctx.restore();
+      });
+    }
+
+    // ダッシュボード更新（鑑定と属性計算）
+    function updateDashboard() {
+      const mList = document.getElementById("meaningList");
+      const eGrid = document.getElementById("elementGrid");
+      
+      mList.innerHTML = "";
+      eGrid.innerHTML = "";
+
+      if (activeRunes.length === 0) {
+        mList.innerHTML = "<li>刻印されたルーンはありません</li>";
+        eGrid.innerHTML = "<span>有効な展開はありません</span>";
+        return;
+      }
+
+      // 1. 意味のリスト化
+      activeRunes.forEach(rune => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${rune.char} (${rune.name})</strong>: ${rune.meaning}`;
+        mList.appendChild(li);
+      });
+
+      // 2. 属性集計 (双方向ロジックの肝)
+      const elCounts = {};
+      activeRunes.forEach(rune => {
+        elCounts[rune.element] = (elCounts[rune.element] || 0) + 1;
+      });
+
+      Object.keys(elCounts).forEach(el => {
+        const count = elCounts[el];
+        const pct = Math.round((count / activeRunes.length) * 100);
+        const tag = document.createElement("div");
+        tag.className = `element-tag el-${el}`;
+        tag.textContent = `${el}属性: ${pct}% (${count}基)`;
+        eGrid.appendChild(tag);
+      });
+    }
+
+    // 円形自動整列 (属性 ➔ 構築の基礎幾何学)
+    function alignInCircle() {
+      if (activeRunes.length === 0) return;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = 140; // 円周上に配置
+      const total = activeRunes.length;
+
+      activeRunes.forEach((rune, i) => {
+        const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+        rune.x = cx + radius * Math.cos(angle);
+        rune.y = cy + radius * Math.sin(angle);
+        // 文字の底部を中心に向ける、あるいは外側に向けるための回転
+        rune.rotation = angle + Math.PI / 2; 
+      });
+      draw();
+      updateDashboard();
+    }
+
+    // テーマから自動構築
+    document.getElementById("selectTheme").onchange = (e) => {
+      const themeKey = e.target.value;
+      if (!themeKey || !THEMES[themeKey]) return;
+      
+      activeRunes = []; // クリア
+      const rIds = THEMES[themeKey];
+      
+      rIds.forEach(id => {
+        const match = RUNE_DATA.find(r => r.id === id);
+        if (match) {
+          activeRunes.push({
+            ...match,
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            size: 28,
+            rotation: 0
+          });
+        }
+      });
+      
+      // 配置して即座に円形に整列
+      alignInCircle();
+      e.target.value = ""; // リセット
+    };
+
+    // 操作系イベント
+    document.getElementById("btnAlign").onclick = alignInCircle;
+    document.getElementById("btnClear").onclick = () => {
+      activeRunes = [];
+      selectedRune = null;
+      draw();
+      updateDashboard();
+    };
+    document.getElementById("btnDelete").onclick = () => {
+      if (!selectedRune) return;
+      activeRunes = activeRunes.filter(r => r !== selectedRune);
+      selectedRune = null;
+      draw();
+      updateDashboard();
+    };
+
+    // タッチ＆マウス座標取得
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      const pos = getCanvasPos(e);
+      let hit = false;
+      
+      for (let i = activeRunes.length - 1; i >= 0; i--) {
+        const rune = activeRunes[i];
+        const dist = Math.hypot(pos.x - rune.x, pos.y - rune.y);
+        if (dist < rune.size * 0.8) {
+          draggingRune = rune;
+          selectedRune = rune;
+          dragOffset.x = pos.x - rune.x;
+          dragOffset.y = pos.y - rune.y;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) selectedRune = null; // 空白タップで選択解除
+      draw();
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!draggingRune) return;
+      const pos = getCanvasPos(e);
+      draggingRune.x = pos.x - dragOffset.x;
+      draggingRune.y = pos.y - dragOffset.y;
+      
+      // 自由移動時は回転をリセット（または中心からの自動向き計算にしても面白い）
+      // ここでは自由移動時は回転0にする
+      draggingRune.rotation = 0;
+      
+      draw();
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      if (draggingRune) {
+        draggingRune = null;
+        updateDashboard();
+      }
+    });
+
+    // PWA用のService Worker登録
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.error('SW registration failed', err));
+      });
+    }
+
+    // 初期描画
+    draw();
+    updateDashboard();
+  </script>
+</body>
+</html>

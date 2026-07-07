@@ -1,0 +1,22 @@
+{
+  "name": "ルーン魔法陣コンストラクター",
+  "short_name": "魔法陣PWA",
+  "description": "ルーン文字を自由に配置・自動構築し、属性や意味を鑑定できる魔法陣作成支援ツール",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#101222",
+  "theme_color": "#e94560",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
