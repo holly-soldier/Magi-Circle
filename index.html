@@ -2,433 +2,357 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>アトリエ魔法陣エディタ【究極版】</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>アトリエ魔法陣 自由配置エディタ</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1a2b4c">
   <style>
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
     body {
-      margin: 0; padding: 10px; background-color: #f4eade; color: #1a2b4c;
+      margin: 0; background-color: #f4eade; color: #1a2b4c;
       font-family: 'Times New Roman', serif; display: flex; flex-direction: column; align-items: center;
-      min-height: 100vh; overflow-x: hidden;
+      height: 100vh; overflow: hidden;
     }
-    h1 { font-size: 1.1rem; margin: 5px 0; border-bottom: 2px solid #1a2b4c; padding-bottom: 5px; letter-spacing: 1px; }
+    h1 { font-size: 1rem; margin: 8px 0; border-bottom: 2px solid #1a2b4c; letter-spacing: 1px; }
     
-    .canvas-container { margin: 10px 0; position: relative; }
-    canvas {
-      background-color: #fffaf0; border: 1px solid #d4c5b0; border-radius: 4px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1); touch-action: none;
-    }
-
-    /* 多重魔法陣の管理UI */
-    .array-manager { width: 100%; max-width: 360px; display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; }
-    .array-tab {
-      padding: 6px 12px; font-size: 0.8rem; background: #e8dbce; border: 1px solid #1a2b4c;
-      border-radius: 4px; cursor: pointer; white-space: nowrap;
-    }
-    .array-tab.active { background: #1a2b4c; color: #fff; font-weight: bold; }
-    .array-tab.forbidden { border-color: #c0392b; color: #c0392b; }
-    .array-tab.forbidden.active { background: #c0392b; color: #fff; }
-
-    .ui-section { width: 100%; max-width: 360px; margin-bottom: 12px; background: #faf4eb; padding: 8px; border: 1px solid #e0d0b8; border-radius: 4px; }
-    .ui-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 6px; border-left: 3px solid #1a2b4c; padding-left: 5px; display: flex; justify-content: space-between; align-items: center; }
+    .app-container { display: flex; flex-direction: column; width: 100%; max-width: 400px; height: 100%; }
     
-    .palette { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* キャンバス領域 */
+    .canvas-wrapper {
+      position: relative; width: 100%; aspect-ratio: 1/1; 
+      background: #fffaf0; border-top: 2px solid #1a2b4c; border-bottom: 2px solid #1a2b4c;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* コントロール領域 */
+    .controls { flex: 1; overflow-y: auto; padding: 10px; background: #faf4eb; }
+    
+    .panel-title { font-size: 0.85rem; font-weight: bold; border-left: 3px solid #1a2b4c; padding-left: 5px; margin-bottom: 5px; margin-top: 10px; }
+    
+    .palette { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
     .btn {
       background: #e8dbce; color: #1a2b4c; border: 1px solid #1a2b4c;
-      padding: 6px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;
+      padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; cursor: pointer;
     }
     .btn:active { background: #1a2b4c; color: #fff; }
     
-    .toggle-group { display: flex; gap: 8px; font-size: 0.75rem; align-items: center; }
-    .toggle-label { display: flex; align-items: center; gap: 2px; }
-    .danger-text { color: #c0392b; font-weight: bold; }
-
-    .dashboard {
-      background: #fffaf0; border: 2px solid #1a2b4c; border-radius: 8px; padding: 10px; font-size: 0.85rem; width: 100%; max-width: 360px;
-    }
-    .status-incomplete { color: #d35400; font-weight: bold; }
-    .status-complete { color: #27ae60; font-weight: bold; }
-    .status-danger { color: #c0392b; font-weight: bold; animation: blink 1s infinite; }
-    @keyframes blink { 50% { opacity: 0.5; } }
-    .translation { margin-top: 8px; font-style: italic; line-height: 1.5; border-top: 1px dashed #d4c5b0; padding-top: 8px; color: #2c3e50; }
+    /* スライダー（インスペクター） */
+    .inspector { background: #e8dbce; padding: 10px; border-radius: 6px; border: 1px solid #d4c5b0; margin-bottom: 10px; }
+    .inspector.disabled { opacity: 0.5; pointer-events: none; }
+    .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+    .slider-row input[type="range"] { flex: 1; margin: 0 10px; accent-color: #1a2b4c; }
+    
+    /* ユーティリティ */
+    .utils { display: flex; gap: 5px; margin-bottom: 20px; }
+    .btn-action { flex: 1; text-align: center; background: #1a2b4c; color: #fff; }
+    .btn-danger { background: #fff; color: #c0392b; border-color: #c0392b; }
   </style>
 </head>
 <body>
 
-  <h1>アトリエ魔法陣【多重・禁忌 対応版】</h1>
-  
-  <div class="canvas-container">
-    <canvas id="magicCanvas" width="340" height="340"></canvas>
-  </div>
+  <div class="app-container">
+    <h1>MAGIC CIRCLE ATELIER v4</h1>
+    
+    <div class="canvas-wrapper">
+      <canvas id="magicCanvas"></canvas>
+    </div>
 
-  <div class="array-manager" id="arrayTabs">
-    <!-- Array Tabs will be injected here -->
-  </div>
-  <div style="width:100%; max-width:360px; margin-bottom:10px; display:flex; gap:5px;">
-    <button class="btn" id="btnAddArray">＋ 新しい陣を追加 (小陣)</button>
-    <button class="btn" id="btnDeleteArray" style="border-color:#c0392b; color:#c0392b;">選択中の陣を削除</button>
-  </div>
+    <div class="controls">
+      <!-- 選択オブジェクトのインスペクター（調整スライダー） -->
+      <div class="inspector disabled" id="inspectorPanel">
+        <div style="font-weight:bold; margin-bottom:5px; font-size:0.85rem;">■ 選択中の図形を調整</div>
+        <div class="slider-row">
+          <span>大きさ</span>
+          <input type="range" id="valScale" min="0.2" max="3.0" step="0.1" value="1">
+        </div>
+        <div class="slider-row">
+          <span>矢の長さ</span>
+          <input type="range" id="valLength" min="20" max="250" step="5" value="80">
+        </div>
+        <div class="slider-row">
+          <span>回転角</span>
+          <input type="range" id="valRotation" min="0" max="360" step="1" value="0">
+        </div>
+        <button class="btn btn-danger" id="btnDeleteSelected" style="width:100%; margin-top:5px;">選択を削除</button>
+      </div>
 
-  <div class="ui-section">
-    <div class="ui-title">1. 紋（性質）<span style="font-weight:normal; font-size:0.7rem;">※追加実装</span></div>
-    <div class="palette" id="crestPalette"></div>
-  </div>
+      <div class="utils">
+        <button class="btn btn-action" id="btnAlignArrows">矢を円形に均等配置</button>
+        <button class="btn btn-danger" id="btnClear">全消去</button>
+      </div>
 
-  <div class="ui-section">
-    <div class="ui-title">
-      2. 矢（形状・方向）
-      <div class="toggle-group">
-        <label class="toggle-label danger-text"><input type="checkbox" id="chkLong">暴走(長)</label>
-        <label class="toggle-label"><input type="checkbox" id="chkDeco">装飾(美)</label>
+      <div class="panel-title">陣 (外枠)</div>
+      <div class="palette">
+        <button class="btn" onclick="addElement('ring', 'normal')">陣を追加</button>
+      </div>
+
+      <div class="panel-title">紋 (中央・性質)</div>
+      <div class="palette">
+        <button class="btn" onclick="addElement('crest', 'fire')">炎</button>
+        <button class="btn" onclick="addElement('crest', 'water')">水</button>
+        <button class="btn" onclick="addElement('crest', 'wind')">風</button>
+        <button class="btn" onclick="addElement('crest', 'earth')">大地</button>
+        <button class="btn" onclick="addElement('crest', 'light')">光</button>
+      </div>
+
+      <div class="panel-title">矢 (周囲・形状)</div>
+      <div class="palette">
+        <button class="btn" onclick="addElement('arrow', 'pillar')">柱 (直進)</button>
+        <button class="btn" onclick="addElement('arrow', 'float')">浮遊 (傘)</button>
+        <button class="btn" onclick="addElement('arrow', 'converge')">収束 (内)</button>
+        <button class="btn" onclick="addElement('arrow', 'scatter')">拡散 (枝)</button>
+        <button class="btn" onclick="addElement('arrow', 'crush')">破砕 (雷)</button>
       </div>
     </div>
-    <div class="palette" id="arrowPalette"></div>
-    <div style="margin-top:5px;"><button class="btn" id="btnUndoArrow">矢を1つ戻す</button></div>
-  </div>
-
-  <div class="ui-section">
-    <div class="ui-title">3. 陣の構築・ルール逸脱</div>
-    <div class="palette">
-      <button class="btn" id="btnToggleRing" style="background:#1a2b4c; color:#fff;">陣を結ぶ / 開く</button>
-      <label class="toggle-label danger-text" style="border:1px solid #c0392b; padding:4px; border-radius:4px; background:#fff;">
-        <input type="checkbox" id="chkForbidden"> 【禁忌】六芒星陣に書き換える
-      </label>
-    </div>
-  </div>
-
-  <div class="dashboard">
-    <div id="statusDisplay">【状態】解析中...</div>
-    <div class="translation" id="translationDisplay"></div>
   </div>
 
   <script>
-    // --- 拡張データ定義 ---
-    const CRESTS = [
-      { id: 'fire', name: '炎', meaning: '熱と炎を', draw: drawFire },
-      { id: 'water', name: '水', meaning: '水を', draw: drawWater },
-      { id: 'wind', name: '風', meaning: '風を', draw: drawWind },
-      { id: 'earth', name: '大地', meaning: '大地を', draw: drawEarth },
-      { id: 'light', name: '光', meaning: '光を', draw: drawLight },
-      { id: 'gas', name: '気体', meaning: '気体を', draw: drawGas }, // 新規追加
-      { id: 'repeat', name: '反復', meaning: '反復して', draw: drawRepeat } // 新規追加
-    ];
+    const canvas = document.getElementById('magicCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Canvasのサイズを親要素に合わせる
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      drawScene();
+    }
+    window.addEventListener('resize', resizeCanvas);
 
-    const ARROWS = [
-      { id: 'pillar', name: '柱', meaning: '柱状に', draw: drawPillar },
-      { id: 'float', name: '浮遊', meaning: '浮かせて', draw: drawFloat },
-      { id: 'converge', name: '収束', meaning: '一点に集め', draw: drawConverge },
-      { id: 'scatter', name: '拡散', meaning: '周囲に散らし', draw: drawScatter },
-      { id: 'crush', name: '破砕', meaning: '粉々に砕き', draw: drawCrush },
-      { id: 'ward', name: '領域', meaning: '一定領域に留め', draw: drawWard } // 新規追加（結界・領域）
-    ];
+    // --- オブジェクト管理 ---
+    let elements = [];
+    let selectedElement = null;
+    let dragging = false;
 
-    // 多重魔法陣のデータ構造
-    let arrays = [
-      { id: 1, name: "主陣", x: 170, y: 170, r: 140, crest: null, arrows: [], hasRing: false, isForbidden: false }
-    ];
-    let selectedId = 1;
-    let draggingArray = null;
+    // --- 図形追加 ---
+    function addElement(category, type) {
+      const el = {
+        id: Date.now(),
+        category: category, // 'ring', 'crest', 'arrow'
+        type: type,
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        scale: 1.0,
+        rotation: 0,
+        length: category === 'arrow' ? 80 : 0 // 矢の場合のデフォルト長さ
+      };
+      
+      // 追加時に少しずらす（重なり防止）
+      el.x += (Math.random() * 20 - 10);
+      el.y += (Math.random() * 20 - 10);
 
-    const canvas = document.getElementById("magicCanvas");
-    const ctx = canvas.getContext("2d");
-    const inkColor = "#1a2b4c";
-    const dangerColor = "#c0392b";
+      elements.push(el);
+      selectElement(el);
+      drawScene();
+    }
 
-    // --- UI構築 ---
-    function renderTabs() {
-      const container = document.getElementById("arrayTabs");
-      container.innerHTML = "";
-      arrays.forEach((arr, index) => {
-        const btn = document.createElement("div");
-        btn.className = `array-tab ${arr.id === selectedId ? 'active' : ''} ${arr.isForbidden ? 'forbidden' : ''}`;
-        btn.textContent = `${arr.name} (半径${arr.r})`;
-        btn.onclick = () => { selectedId = arr.id; updateUI(); };
-        container.appendChild(btn);
+    // --- 描画パス定義（原作画像により忠実に） ---
+    const drawPaths = {
+      // 【陣】
+      ring_normal: (ctx, el) => {
+        const r = 100 * el.scale;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.stroke();
+      },
+      // 【紋】
+      crest_fire: (ctx, el) => {
+        const r = 25 * el.scale;
+        // 炎：上向きの三角形と中心の線
+        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(-r*0.8, r*0.8); ctx.lineTo(r*0.8, r*0.8); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -r*0.2); ctx.lineTo(0, r*0.8); ctx.stroke();
+      },
+      crest_water: (ctx, el) => {
+        const r = 25 * el.scale;
+        // 水：S字が組み合わさった雫形
+        ctx.beginPath(); 
+        ctx.arc(0, -r*0.3, r*0.6, Math.PI, 0); 
+        ctx.arc(0, r*0.3, r*0.6, 0, Math.PI); 
+        ctx.stroke();
+      },
+      crest_wind: (ctx, el) => {
+        const r = 25 * el.scale;
+        // 風：螺旋・つむじ風
+        ctx.beginPath(); ctx.arc(-r*0.2, 0, r*0.6, Math.PI/2, Math.PI*1.5); ctx.stroke();
+        ctx.beginPath(); ctx.arc(r*0.2, 0, r*0.6, -Math.PI/2, Math.PI/2); ctx.stroke();
+      },
+      crest_earth: (ctx, el) => {
+        const r = 25 * el.scale;
+        // 大地：ひし形（上下三角）に横線
+        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(-r*0.8, 0); ctx.lineTo(0, r); ctx.lineTo(r*0.8, 0); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-r*0.4, -r*0.5); ctx.lineTo(r*0.4, -r*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-r*0.4, r*0.5); ctx.lineTo(r*0.4, r*0.5); ctx.stroke();
+      },
+      crest_light: (ctx, el) => {
+        const r = 25 * el.scale;
+        // 光：鋭い四芒星
+        ctx.beginPath(); ctx.moveTo(0, -r*1.2); ctx.lineTo(-r*0.4, 0); ctx.lineTo(0, r*1.2); ctx.lineTo(r*0.4, 0); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-r*1.2, 0); ctx.lineTo(r*1.2, 0); ctx.stroke();
+      },
+      // 【矢】 (矢の根本が0,0になるように描画)
+      arrow_pillar: (ctx, el) => {
+        const l = el.length; const w = 15 * el.scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-w, -l); ctx.lineTo(w, -l); ctx.stroke();
+      },
+      arrow_float: (ctx, el) => {
+        const l = el.length; const w = 20 * el.scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-w, -l); ctx.quadraticCurveTo(0, -l-w, w, -l); ctx.stroke(); // 傘のような曲線
+      },
+      arrow_converge: (ctx, el) => {
+        const l = el.length; const w = 15 * el.scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-w, -l - w); ctx.lineTo(0, -l); ctx.lineTo(w, -l - w); ctx.stroke(); // 内向き三角
+      },
+      arrow_scatter: (ctx, el) => {
+        const l = el.length; const w = 15 * el.scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l + w); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -l + w); ctx.lineTo(-w, -l); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -l + w); ctx.lineTo(w, -l); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -l + w); ctx.lineTo(0, -l - w*0.5); ctx.stroke();
+      },
+      arrow_crush: (ctx, el) => {
+        const l = el.length; const w = 15 * el.scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l + w*2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -l + w*2); ctx.lineTo(-w, -l + w); ctx.lineTo(w, -l); ctx.lineTo(0, -l - w); ctx.stroke(); // ジグザグ
+      }
+    };
+
+    // --- 描画メイン ---
+    function drawScene() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // グリッド線
+      ctx.strokeStyle = "rgba(212, 197, 176, 0.4)"; ctx.lineWidth = 1;
+      for(let i=0; i<canvas.width; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+      elements.forEach(el => {
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.rotate(el.rotation * Math.PI / 180);
+
+        // 選択中ハイライト
+        const isSel = (selectedElement && selectedElement.id === el.id);
+        if (isSel) {
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "#e74c3c";
+          ctx.strokeStyle = "#e74c3c";
+          // 掴める位置（原点）を赤丸で表示
+          ctx.fillStyle = "rgba(231, 76, 60, 0.3)";
+          ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+        } else {
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "#1a2b4c";
+        }
+
+        ctx.lineWidth = 2 * (el.category === 'ring' ? 1.5 : 1);
+        
+        // 描画実行
+        const drawKey = `${el.category}_${el.type}`;
+        if (drawPaths[drawKey]) drawPaths[drawKey](ctx, el);
+
+        ctx.restore();
       });
     }
 
-    const crestPalette = document.getElementById("crestPalette");
-    CRESTS.forEach(c => {
-      const btn = document.createElement("button"); btn.className = "btn"; btn.textContent = c.name;
-      btn.onclick = () => { getSelected().crest = c; updateAll(); };
-      crestPalette.appendChild(btn);
-    });
+    // --- インスペクター（スライダー連動） ---
+    const panel = document.getElementById('inspectorPanel');
+    const sScale = document.getElementById('valScale');
+    const sLength = document.getElementById('valLength');
+    const sRot = document.getElementById('valRotation');
 
-    const arrowPalette = document.getElementById("arrowPalette");
-    ARROWS.forEach(a => {
-      const btn = document.createElement("button"); btn.className = "btn"; btn.textContent = a.name;
-      btn.onclick = () => {
-        const arr = getSelected();
-        if (arr.arrows.length < 8) {
-          arr.arrows.push({ 
-            data: a, 
-            isLong: document.getElementById("chkLong").checked,
-            isDeco: document.getElementById("chkDeco").checked
-          });
-          updateAll();
-        }
-      };
-      arrowPalette.appendChild(btn);
-    });
-
-    document.getElementById("btnUndoArrow").onclick = () => { getSelected().arrows.pop(); updateAll(); };
-    document.getElementById("btnToggleRing").onclick = () => { getSelected().hasRing = !getSelected().hasRing; updateAll(); };
-    document.getElementById("chkForbidden").onchange = (e) => { getSelected().isForbidden = e.target.checked; updateAll(); };
-
-    document.getElementById("btnAddArray").onclick = () => {
-      const newId = Date.now();
-      // 新しい陣は少し小さく、位置を少しずらす
-      arrays.push({ id: newId, name: `小陣${arrays.length}`, x: 170 + (Math.random()*40-20), y: 170 + (Math.random()*40-20), r: 60, crest: null, arrows: [], hasRing: false, isForbidden: false });
-      selectedId = newId;
-      updateAll();
-    };
-
-    document.getElementById("btnDeleteArray").onclick = () => {
-      if (arrays.length <= 1) return; // 最低1つは残す
-      arrays = arrays.filter(a => a.id !== selectedId);
-      selectedId = arrays[0].id;
-      updateAll();
-    };
-
-    function getSelected() { return arrays.find(a => a.id === selectedId); }
-
-    function updateUI() {
-      renderTabs();
-      const sel = getSelected();
-      document.getElementById("chkForbidden").checked = sel.isForbidden;
+    function selectElement(el) {
+      selectedElement = el;
+      if (el) {
+        panel.classList.remove('disabled');
+        sScale.value = el.scale;
+        sLength.value = el.length;
+        sRot.value = el.rotation;
+        sLength.disabled = (el.category !== 'arrow'); // 矢以外は長さを無効化
+      } else {
+        panel.classList.add('disabled');
+      }
+      drawScene();
     }
 
-    // --- キャンバスのドラッグ操作 (小陣を動かす) ---
-    function getPointerPos(e) {
+    sScale.oninput = e => { if(selectedElement) { selectedElement.scale = parseFloat(e.target.value); drawScene(); } };
+    sLength.oninput = e => { if(selectedElement) { selectedElement.length = parseFloat(e.target.value); drawScene(); } };
+    sRot.oninput = e => { if(selectedElement) { selectedElement.rotation = parseFloat(e.target.value); drawScene(); } };
+
+    document.getElementById('btnDeleteSelected').onclick = () => {
+      if (selectedElement) {
+        elements = elements.filter(e => e.id !== selectedElement.id);
+        selectElement(null);
+      }
+    };
+
+    document.getElementById('btnClear').onclick = () => { elements = []; selectElement(null); };
+
+    // --- 均等配置ロジック ---
+    document.getElementById('btnAlignArrows').onclick = () => {
+      // キャンバス中心を基準に矢を均等配置
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const arrows = elements.filter(e => e.category === 'arrow');
+      if (arrows.length === 0) return;
+
+      const angleStep = 360 / arrows.length;
+      arrows.forEach((arr, i) => {
+        arr.x = cx;
+        arr.y = cy;
+        arr.rotation = i * angleStep;
+      });
+      // 陣と紋も中心に寄せる
+      elements.filter(e => e.category !== 'arrow').forEach(e => {
+        e.x = cx; e.y = cy;
+      });
+      
+      if(selectedElement) selectElement(selectedElement); // スライダー値更新
+      drawScene();
+    };
+
+    // --- タッチ＆ドラッグ操作 ---
+    function getEventPos(e) {
       const rect = canvas.getBoundingClientRect();
       const cx = e.touches ? e.touches[0].clientX : e.clientX;
       const cy = e.touches ? e.touches[0].clientY : e.clientY;
       return { x: cx - rect.left, y: cy - rect.top };
     }
 
-    canvas.addEventListener("pointerdown", (e) => {
-      const pos = getPointerPos(e);
-      // タッチした場所がどの陣の中心に近いか判定（小さい陣、後から描いた陣を優先）
-      for (let i = arrays.length - 1; i >= 0; i--) {
-        const arr = arrays[i];
-        if (Math.hypot(pos.x - arr.x, pos.y - arr.y) < arr.r) {
-          draggingArray = arr;
-          selectedId = arr.id;
-          updateUI();
-          updateAll();
-          break;
-        }
+    canvas.addEventListener('pointerdown', e => {
+      const pos = getEventPos(e);
+      let hit = null;
+      // 描画順（配列の後ろ）から当たり判定
+      for (let i = elements.length - 1; i >= 0; i--) {
+        const el = elements[i];
+        // 簡易当たり判定：要素の原点（x, y）からの距離
+        // 矢は原点が根本なので、根本を掴んで動かせる
+        const dist = Math.hypot(pos.x - el.x, pos.y - el.y);
+        let hitRadius = 25; // つかみやすいように広め
+        if (el.category === 'ring') hitRadius = 100 * el.scale; // 陣は広範囲で掴める
+        
+        if (dist < hitRadius) { hit = el; break; }
+      }
+      selectElement(hit);
+      if (hit) dragging = true;
+    });
+
+    canvas.addEventListener('pointermove', e => {
+      if (dragging && selectedElement) {
+        const pos = getEventPos(e);
+        selectedElement.x = pos.x;
+        selectedElement.y = pos.y;
+        drawScene();
       }
     });
 
-    canvas.addEventListener("pointermove", (e) => {
-      if (!draggingArray) return;
-      const pos = getPointerPos(e);
-      draggingArray.x = pos.x;
-      draggingArray.y = pos.y;
-      updateAll();
-    });
+    canvas.addEventListener('pointerup', () => { dragging = false; });
+    canvas.addEventListener('pointerleave', () => { dragging = false; });
 
-    canvas.addEventListener("pointerup", () => { draggingArray = null; });
-    canvas.addEventListener("pointerleave", () => { draggingArray = null; });
-
-    // --- 描画ロジック（紋） ---
-    function drawFire(cx, cy, r) {
-      ctx.beginPath(); ctx.moveTo(cx, cy - r*0.5); ctx.lineTo(cx - r*0.5, cy + r*0.3); ctx.lineTo(cx + r*0.5, cy + r*0.3); ctx.closePath(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx, cy - r*0.8); ctx.lineTo(cx, cy - r*0.5); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawWater(cx, cy, r) {
-      ctx.beginPath(); ctx.arc(cx, cy - r*0.2, r*0.4, Math.PI, 0); ctx.arc(cx, cy + r*0.2, r*0.4, 0, Math.PI); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawWind(cx, cy, r) {
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.4, Math.PI/2, Math.PI*1.5); ctx.arc(cx, cy+r*0.3, r*0.4, -Math.PI/2, Math.PI/2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawEarth(cx, cy, r) {
-      ctx.beginPath(); ctx.moveTo(cx-r*0.5, cy-r*0.2); ctx.lineTo(cx+r*0.5, cy-r*0.2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx-r*0.5, cy+r*0.2); ctx.lineTo(cx+r*0.5, cy+r*0.2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.9, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawLight(cx, cy, r) {
-      ctx.beginPath(); ctx.moveTo(cx, cy-r*0.6); ctx.lineTo(cx-r*0.5, cy); ctx.lineTo(cx, cy+r*0.6); ctx.lineTo(cx+r*0.5, cy); ctx.closePath(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawGas(cx, cy, r) {
-      // 雲のようなもこもこした紋
-      ctx.beginPath(); ctx.arc(cx-r*0.2, cy+r*0.2, r*0.3, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx+r*0.2, cy+r*0.2, r*0.3, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy-r*0.2, r*0.4, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-    function drawRepeat(cx, cy, r) {
-      // 無限大マークのような紋
-      ctx.beginPath(); ctx.ellipse(cx-r*0.3, cy, r*0.3, r*0.2, 0, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(cx+r*0.3, cy, r*0.3, r*0.2, 0, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-    }
-
-    // --- 描画ロジック（矢） ---
-    // len: 線の長さ, w: 矢じりの幅
-    function drawPillar(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w); ctx.lineTo(0, w + len); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-w/2, w + len); ctx.lineTo(w/2, w + len); ctx.stroke();
-    }
-    function drawFloat(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w); ctx.lineTo(0, w + len); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-w/2, w + len); ctx.lineTo(0, w + len + w/2); ctx.lineTo(w/2, w + len); ctx.stroke();
-    }
-    function drawConverge(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w + len); ctx.lineTo(-w/2, w + len - w*0.6); ctx.lineTo(w/2, w + len - w*0.6); ctx.closePath(); ctx.stroke();
-    }
-    function drawScatter(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w); ctx.lineTo(0, w + len - w); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, w + len - w); ctx.lineTo(-w/2, w + len); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, w + len - w); ctx.lineTo(w/2, w + len); ctx.stroke();
-    }
-    function drawCrush(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w); ctx.lineTo(0, w + len - w); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-w/2, w + len - w); ctx.lineTo(-w/4, w + len - w/2); ctx.lineTo(0, w + len - w); ctx.lineTo(w/4, w + len - w/2); ctx.lineTo(w/2, w + len - w); ctx.stroke();
-    }
-    function drawWard(len, w) {
-      ctx.beginPath(); ctx.moveTo(0, w); ctx.lineTo(0, w + len - w); ctx.stroke();
-      ctx.strokeRect(-w/2, w + len - w, w, w); // 領域を示す四角形
-    }
-
-    // --- メイン描画ループ ---
-    function drawAllArrays() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineCap = "round"; ctx.lineJoin = "round";
-
-      // 背景グリッド（魔法陣を配置しやすくするため）
-      ctx.strokeStyle = "rgba(212, 197, 176, 0.3)"; ctx.lineWidth = 1;
-      for(let i=0; i<340; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,340); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(340,i); ctx.stroke(); }
-
-      arrays.forEach(arr => {
-        const cx = arr.x; const cy = arr.y; const R = arr.r;
-        const isSelected = (arr.id === selectedId);
-
-        ctx.strokeStyle = arr.isForbidden ? dangerColor : inkColor;
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.lineWidth = isSelected ? 2.5 : 1.5;
-        
-        // 選択中の陣はわずかに発光
-        if (isSelected) { ctx.shadowBlur = 8; ctx.shadowColor = "rgba(26, 43, 76, 0.3)"; } else { ctx.shadowBlur = 0; }
-
-        // 【禁忌】六芒星の描画
-        if (arr.isForbidden) {
-          ctx.beginPath();
-          for(let i=0; i<3; i++) {
-            let a = i * (Math.PI*2/3) - Math.PI/2;
-            ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
-          }
-          ctx.closePath(); ctx.stroke();
-          ctx.beginPath();
-          for(let i=0; i<3; i++) {
-            let a = i * (Math.PI*2/3) + Math.PI/6;
-            ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
-          }
-          ctx.closePath(); ctx.stroke();
-        }
-
-        // 通常の陣
-        if (arr.hasRing && !arr.isForbidden) {
-          ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
-          ctx.beginPath(); ctx.arc(cx, cy, R - R*0.05, 0, Math.PI * 2); ctx.lineWidth = 1; ctx.stroke();
-          ctx.lineWidth = isSelected ? 2.5 : 1.5;
-        }
-
-        // 矢の描画
-        const arrowCount = arr.arrows.length;
-        if (arrowCount > 0) {
-          arr.arrows.forEach((arrowObj, index) => {
-            const angle = (index / arrowCount) * Math.PI * 2 - Math.PI / 2;
-            ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
-            
-            // サイズ計算
-            const baseLen = R * 0.5;
-            const len = arrowObj.isLong ? R * 1.2 : baseLen; // 暴走矢は陣を突き破る
-            const w = R * 0.2;
-            
-            if (arrowObj.isLong) ctx.strokeStyle = dangerColor;
-            arrowObj.data.draw(len, w);
-
-            // 【装飾の矢】植物や羽のような装飾パスを追加
-            if (arrowObj.isDeco) {
-              ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(0, w + len/2); ctx.quadraticCurveTo(w, w + len/2 + w, 0, w + len/2 + w*2); ctx.stroke();
-              ctx.beginPath(); ctx.moveTo(0, w + len/2); ctx.quadraticCurveTo(-w, w + len/2 + w, 0, w + len/2 + w*2); ctx.stroke();
-            }
-
-            ctx.restore();
-            ctx.strokeStyle = arr.isForbidden ? dangerColor : inkColor; // 戻す
-          });
-        }
-
-        // 紋の描画
-        if (arr.crest) {
-          // 背景を抜く
-          ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.arc(cx, cy, R*0.22, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = arr.isForbidden ? dangerColor : inkColor;
-          arr.crest.draw(cx, cy, R*0.25);
-        }
-      });
-      ctx.shadowBlur = 0; // リセット
-    }
-
-    // --- 翻訳・鑑定 (複合魔法対応) ---
-    function updateDashboard() {
-      const statDisplay = document.getElementById("statusDisplay");
-      const transDisplay = document.getElementById("translationDisplay");
-
-      let allClosed = true;
-      let hasForbidden = false;
-      let hasDanger = false;
-      let texts = [];
-
-      arrays.forEach(arr => {
-        if (!arr.hasRing && !arr.isForbidden) allClosed = false;
-        if (arr.isForbidden) hasForbidden = true;
-        
-        let arrText = "";
-        if (!arr.crest && arr.arrows.length === 0) {
-          arrText = "白紙";
-        } else {
-          let aTexts = arr.arrows.map(a => {
-            let t = a.data.meaning;
-            if (a.isLong) { t = `強烈に${t}`; hasDanger = true; }
-            if (a.isDeco) t = `美しい装飾を伴って${t}`;
-            return t;
-          });
-          if (aTexts.length > 0) arrText += aTexts.join("、") + "、";
-          arrText += arr.crest ? arr.crest.meaning : "何かを";
-          
-          if (!arr.hasRing && !arr.isForbidden) arrText += "（※魔力漏れ）";
-          if (arr.isForbidden) arrText = `<span style="color:#c0392b">[禁忌]</span> ` + arrText;
-        }
-        texts.push(`<strong>${arr.name}</strong>: ${arrText}`);
-      });
-
-      transDisplay.innerHTML = texts.join("<br>＋ ");
-
-      if (hasForbidden) {
-        statDisplay.innerHTML = "<span class='status-danger'>【警告】禁忌魔法が検出されました。図書塔への通報事案です。</span>";
-      } else if (!allClosed) {
-        statDisplay.innerHTML = "<span class='status-incomplete'>【状態】陣が未完成の箇所があります（魔力漏れ）</span>";
-      } else if (hasDanger) {
-        statDisplay.innerHTML = "<span class='status-danger'>【危険】暴走の兆候あり。矢が長すぎます！</span>";
-      } else {
-        statDisplay.innerHTML = "<span class='status-complete'>【状態】複合魔法・発動可能！</span>";
-      }
-    }
-
-    function updateAll() { updateUI(); drawAllArrays(); updateDashboard(); }
-
-    if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{})); }
-    updateAll();
+    // 初期化
+    setTimeout(resizeCanvas, 100);
   </script>
 </body>
 </html>
