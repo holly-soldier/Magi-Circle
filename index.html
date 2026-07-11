@@ -6,7 +6,6 @@
   <title>アトリエ魔法陣 完全自由配置エディタ</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    /* 全体のスクロールを許可するため overflow:hidden や touch-action:none は外す */
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
     body {
       margin: 0; padding: 10px; background-color: #f4eade; color: #1a2b4c;
@@ -23,7 +22,7 @@
       touch-action: none; overflow: hidden;
       box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
     }
-    canvas { display: block; width: 100%; height: 100%; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
     .camera-controls { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: bold; padding: 5px; background: #e8dbce; border-radius: 4px; border: 1px solid #d4c5b0; }
     .camera-controls input[type="range"] { flex: 1; accent-color: #1a2b4c; }
@@ -53,7 +52,7 @@
 <body>
 
   <div class="app-container">
-    <h1>MAGIC CIRCLE ATELIER v5</h1>
+    <h1>MAGIC CIRCLE ATELIER v6</h1>
     
     <div class="camera-controls">
       <span>🔍 ズーム</span>
@@ -61,6 +60,7 @@
       <button class="btn" id="btnResetCam" style="padding:4px 8px;">リセット</button>
     </div>
 
+    <!-- キャンバス領域（ピンチイン・アウト対応） -->
     <div class="canvas-wrapper">
       <canvas id="magicCanvas"></canvas>
     </div>
@@ -100,8 +100,8 @@
       <button class="btn" onclick="addElement('crest', 'fire')">炎</button>
       <button class="btn" onclick="addElement('crest', 'water')">水</button>
       <button class="btn" onclick="addElement('crest', 'wind')">風</button>
-      <button class="btn" onclick="addElement('crest', 'earth')">大地</button>
       <button class="btn" onclick="addElement('crest', 'light')">光</button>
+      <button class="btn" onclick="addElement('crest', 'earth')">大地</button>
     </div>
 
     <div class="panel-title">矢 (周囲・形状)</div>
@@ -134,19 +134,19 @@
     let selectedElement = null;
     let dragging = false;
     let draggingCamera = false;
-    let dragOffset = { x: 0, y: 0 }; // 掴んだ場所のズレを保持
+    let dragOffset = { x: 0, y: 0 }; 
 
     function addElement(category, type) {
       const el = {
         id: Date.now(),
         category: category,
         type: type,
-        x: 0 - camera.x, // 画面中心付近に出現
+        x: 0 - camera.x,
         y: 0 - camera.y,
         scale: 1.0,
         rotation: 0,
         length: category === 'arrow' ? 80 : 0,
-        isClosed: false // 陣専用の開閉ステータス
+        isClosed: false 
       };
       el.x += (Math.random() * 20 - 10);
       el.y += (Math.random() * 20 - 10);
@@ -155,9 +155,9 @@
       drawScene();
     }
 
-    // --- 描画パス定義 ---
+    // --- 【修正版】描画パス定義 ---
     const drawPaths = {
-      // 【陣】一部を開けておく（isClosed=true で閉じる）
+      // 【陣】
       ring_normal: (ctx, el) => {
         const r = 100 * el.scale;
         const start = el.isClosed ? 0 : Math.PI * 0.15;
@@ -165,7 +165,6 @@
         ctx.beginPath(); ctx.arc(0, 0, r, start, end); ctx.stroke();
         ctx.beginPath(); ctx.arc(0, 0, r * 0.92, start, end); ctx.stroke();
         
-        // 閉じた状態なら発動エフェクト
         if (el.isClosed) {
           ctx.save();
           ctx.fillStyle = "#e74c3c"; ctx.font = `bold ${16*el.scale}px sans-serif`;
@@ -176,42 +175,60 @@
       },
       // 【紋】
       crest_fire: (ctx, el) => {
-        const R = 30 * el.scale;
-        const S = R * Math.sqrt(3);
-        const halfS = S / 2;
+        const r = 25 * el.scale;
+        const L = r * Math.sqrt(3); // 正三角形の1辺の長さ
+        const halfL = L / 2;
+        
         // 1. 正三角形
         ctx.beginPath();
-        ctx.moveTo(0, -R); ctx.lineTo(-S/2, R/2); ctx.lineTo(S/2, R/2);
+        ctx.moveTo(0, -r); ctx.lineTo(-L/2, r/2); ctx.lineTo(L/2, r/2);
         ctx.closePath(); ctx.stroke();
+        
         // 2. 各辺の中心から中心へ伸びる辺の半分の長さの線
-        function drawMed(mx, my, angle) {
-            ctx.beginPath(); ctx.moveTo(mx, my);
-            ctx.lineTo(mx + halfS * Math.cos(angle), my + halfS * Math.sin(angle));
-            ctx.stroke();
-        }
-        drawMed(0, R/2, -Math.PI/2); // 底辺から上へ
-        drawMed(S/4, -R/4, Math.PI * 5/6); // 右斜辺から左下へ
-        drawMed(-S/4, -R/4, Math.PI / 6); // 左斜辺から右下へ
+        // 底辺の中心から上へ
+        ctx.beginPath(); ctx.moveTo(0, r/2); ctx.lineTo(0, r/2 - halfL); ctx.stroke();
+        
+        // 左斜辺の中心から右下へ
+        const dx = halfL * Math.cos(Math.PI/6);
+        const dy = halfL * Math.sin(Math.PI/6);
+        ctx.beginPath(); ctx.moveTo(-L/4, -r/4); ctx.lineTo(-L/4 + dx, -r/4 + dy); ctx.stroke();
+        
+        // 右斜辺の中心から左下へ
+        ctx.beginPath(); ctx.moveTo(L/4, -r/4); ctx.lineTo(L/4 - dx, -r/4 + dy); ctx.stroke();
       },
       crest_water: (ctx, el) => {
-        const r = 25 * el.scale;
-        // 1. S字
+        const r = 22 * el.scale;
+        // 1. 中央のS字
         ctx.beginPath();
         ctx.arc(0, -r/2, r/2, Math.PI*1.5, Math.PI*-0.5, true);
         ctx.arc(0, r/2, r/2, Math.PI*1.5, Math.PI*-0.5, false);
         ctx.stroke();
+        
         // 2. 上下逆の水滴を左右に
-        function drawUpsideDownTeardrop(tx, ty, size) {
+        function drawUpsideDownTeardrop(cx, cy, size) {
             ctx.beginPath();
-            ctx.arc(tx, ty - size*0.3, size*0.5, Math.PI, 0); // 丸い部分が上
-            ctx.lineTo(tx, ty + size); // 尖った部分が下
+            ctx.arc(cx, cy - size*0.3, size*0.5, Math.PI, 0); // 丸い部分が上
+            ctx.lineTo(cx, cy + size); // 尖った部分が下
             ctx.closePath(); ctx.stroke();
         }
-        drawUpsideDownTeardrop(-r*1.5, 0, r*0.5);
-        drawUpsideDownTeardrop(r*1.5, 0, r*0.5);
+        drawUpsideDownTeardrop(-r*1.6, 0, r*0.7);
+        drawUpsideDownTeardrop(r*1.6, 0, r*0.7);
+      },
+      crest_light: (ctx, el) => {
+        const r = 22 * el.scale;
+        // 1. 外側に正四角形
+        ctx.beginPath(); ctx.rect(-r, -r, r*2, r*2); ctx.stroke();
+        // 2. 内側にひし形
+        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.stroke();
+        
+        // 3. 各辺の中心から外側に伸びる辺の半分の長さ(r)の線
+        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, -r - r); ctx.stroke(); // 上
+        ctx.beginPath(); ctx.moveTo(0, r); ctx.lineTo(0, r + r); ctx.stroke(); // 下
+        ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(-r - r, 0); ctx.stroke(); // 左
+        ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(r + r, 0); ctx.stroke(); // 右
       },
       crest_wind: (ctx, el) => {
-        const r = 25 * el.scale;
+        const r = 22 * el.scale;
         // 1. 両端がくるくる巻いたS字
         ctx.beginPath();
         ctx.arc(0, -r*0.4, r*0.4, Math.PI*1.5, Math.PI*0.5, true);
@@ -220,12 +237,14 @@
         ctx.beginPath(); ctx.arc(0, -r*0.8, r*0.15, Math.PI*1.5, Math.PI*3.5); ctx.stroke(); // 上の渦
         ctx.beginPath(); ctx.arc(0, r*0.8, r*0.15, Math.PI*0.5, Math.PI*2.5); ctx.stroke(); // 下の渦
         
-        // 2. 左右に「小」のハネてないやつ（外向き）
+        // 2. 左右に「小」のハネてないやつ（外向きに）
         function drawSho(cx, cy, dir) {
             ctx.save(); ctx.translate(cx, cy); ctx.rotate(dir);
-            ctx.beginPath(); ctx.moveTo(0, r*0.2); ctx.lineTo(0, -r*0.8); ctx.stroke(); // 縦線
-            ctx.beginPath(); ctx.moveTo(-r*0.3, 0); ctx.lineTo(-r*0.5, r*0.2); ctx.stroke(); // 左点
-            ctx.beginPath(); ctx.moveTo(r*0.3, 0); ctx.lineTo(r*0.5, r*0.2); ctx.stroke(); // 右点
+            // 中心線
+            ctx.beginPath(); ctx.moveTo(0, r*0.6); ctx.lineTo(0, -r*0.6); ctx.stroke();
+            // 左右の点（跳ねない）
+            ctx.beginPath(); ctx.moveTo(-r*0.3, 0); ctx.lineTo(-r*0.5, -r*0.3); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(r*0.3, 0); ctx.lineTo(r*0.5, -r*0.3); ctx.stroke();
             ctx.restore();
         }
         drawSho(-r*1.5, 0, -Math.PI/2); // 左へ向く
@@ -233,23 +252,11 @@
       },
       crest_earth: (ctx, el) => {
         const r = 30 * el.scale;
-        // ひし形（上下三角）に横線
         ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(-r*0.8, 0); ctx.lineTo(0, r); ctx.lineTo(r*0.8, 0); ctx.closePath(); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-r*0.4, -r*0.5); ctx.lineTo(r*0.4, -r*0.5); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-r*0.4, r*0.5); ctx.lineTo(r*0.4, r*0.5); ctx.stroke();
       },
-      crest_light: (ctx, el) => {
-        const r = 25 * el.scale;
-        // ひし形の外側に正四角形
-        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.stroke();
-        ctx.beginPath(); ctx.rect(-r, -r, r*2, r*2); ctx.stroke();
-        // 四角形の各辺の中心から外側に伸びる半分の長さの線
-        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, -2r); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, r); ctx.lineTo(0, 2r); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(-2r, 0); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(2r, 0); ctx.stroke();
-      },
-      // 【矢】 (根本が 0,0 になるように)
+      // 【矢】
       arrow_pillar: (ctx, el) => {
         const l = el.length; const w = 15 * el.scale;
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -l); ctx.stroke();
@@ -281,9 +288,9 @@
 
     function drawScene() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
       ctx.save();
-      // カメラの適用
+      
+      // カメラ適用
       ctx.translate(canvas.width / 2 + camera.x, canvas.height / 2 + camera.y);
       ctx.scale(camera.zoom, camera.zoom);
       
@@ -305,13 +312,11 @@
           ctx.shadowBlur = 8 / camera.zoom;
           ctx.shadowColor = "#e74c3c";
           ctx.strokeStyle = el.isClosed ? "#27ae60" : "#e74c3c";
-          
-          // 操作の支点（原点）を可視化
           ctx.fillStyle = "rgba(231, 76, 60, 0.2)";
           ctx.beginPath(); ctx.arc(0, 0, 15/camera.zoom, 0, Math.PI*2); ctx.fill();
         } else {
           ctx.shadowBlur = 0;
-          ctx.strokeStyle = el.isClosed ? "#27ae60" : "#1a2b4c"; // 発動中の陣は緑
+          ctx.strokeStyle = el.isClosed ? "#27ae60" : "#1a2b4c"; 
         }
 
         ctx.lineWidth = (el.category === 'ring' ? 2 : 1.5) / camera.zoom;
@@ -323,7 +328,7 @@
       ctx.restore();
     }
 
-    // --- インスペクター連動 ---
+    // --- UI連動 ---
     const panel = document.getElementById('inspectorPanel');
     const sScale = document.getElementById('valScale');
     const sLength = document.getElementById('valLength');
@@ -360,7 +365,7 @@
     btnToggleRing.onclick = () => {
         if(selectedElement && selectedElement.category === 'ring') {
             selectedElement.isClosed = !selectedElement.isClosed;
-            selectElement(selectedElement); // UIリフレッシュ
+            selectElement(selectedElement);
         }
     };
 
@@ -369,24 +374,25 @@
     };
     document.getElementById('btnClear').onclick = () => { elements = []; selectElement(null); };
 
-    // --- カメラ操作UI ---
+    // --- カメラ操作 ---
     const camZoom = document.getElementById('camZoom');
-    camZoom.oninput = e => { camera.zoom = parseFloat(e.target.value); drawScene(); };
+    function setZoom(val) {
+      camera.zoom = Math.min(Math.max(0.3, val), 3.0);
+      camZoom.value = camera.zoom;
+      drawScene();
+    }
+    camZoom.oninput = e => setZoom(parseFloat(e.target.value));
     document.getElementById('btnResetCam').onclick = () => { camera = { x: 0, y: 0, zoom: 1 }; camZoom.value = 1; drawScene(); };
 
-    // --- 均等配置ロジック ---
-    document.getElementById('btnAlignArrows').onclick = () => {
-      const cx = 0 - camera.x; const cy = 0 - camera.y;
-      const arrows = elements.filter(e => e.category === 'arrow');
-      if (arrows.length === 0) return;
-      const angleStep = 360 / arrows.length;
-      arrows.forEach((arr, i) => { arr.x = cx; arr.y = cy; arr.rotation = i * angleStep; });
-      elements.filter(e => e.category !== 'arrow').forEach(e => { e.x = cx; e.y = cy; });
-      if(selectedElement) selectElement(selectedElement);
-      drawScene();
-    };
+    // ピンチズーム＆ホイールズーム対応
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      setZoom(camera.zoom - e.deltaY * 0.001);
+    }, {passive: false});
 
-    // --- マウス・タッチ操作（ワールド座標変換 ＆ ドーナツ判定） ---
+    let initialPinchDist = null;
+    let initialZoom = 1;
+
     function getWorldPos(cx, cy) {
       const rect = canvas.getBoundingClientRect();
       const x = cx - rect.left - canvas.width / 2 - camera.x;
@@ -400,20 +406,18 @@
       const wPos = getWorldPos(cx, cy);
       
       let hit = null;
-      // 手前に描画されたもの（配列の末尾）から判定
       for (let i = elements.length - 1; i >= 0; i--) {
         const el = elements[i];
         const dist = Math.hypot(wPos.x - el.x, wPos.y - el.y);
         
         if (el.category === 'ring') {
-            // ドーナツ状の当たり判定（中抜き）
             const outer = 115 * el.scale;
             const inner = 85 * el.scale;
             if (dist >= inner && dist <= outer) { hit = el; break; }
         } else if (el.category === 'arrow') {
-            if (dist < 40 / camera.zoom) { hit = el; break; } // 矢は根本を掴む
+            if (dist < 40 / camera.zoom) { hit = el; break; }
         } else {
-            if (dist < 40 * el.scale) { hit = el; break; } // 紋は全体
+            if (dist < 40 * el.scale) { hit = el; break; }
         }
       }
       
@@ -421,37 +425,63 @@
       
       if (hit) {
         dragging = true; draggingCamera = false;
-        // 掴んだ場所のズレを記憶する（中心にスナップしないため）
         dragOffset.x = wPos.x - hit.x;
         dragOffset.y = wPos.y - hit.y;
       } else {
         dragging = false; draggingCamera = true;
+        const rect = canvas.getBoundingClientRect();
         dragOffset.x = (cx - rect.left) - camera.x;
         dragOffset.y = (cy - rect.top) - camera.y;
       }
     });
 
-    const rect = canvas.getBoundingClientRect(); // pointerdown用キャッシュ
-    
     canvas.addEventListener('pointermove', e => {
+      e.preventDefault(); // スワイプでのブラウザバックや更新を防止
+      
+      // ピンチズーム処理
+      if (e.touches && e.touches.length === 2) {
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        if (initialPinchDist === null) {
+            initialPinchDist = dist;
+            initialZoom = camera.zoom;
+        } else {
+            setZoom(initialZoom * (dist / initialPinchDist));
+        }
+        return;
+      }
+
       const cx = e.touches ? e.touches[0].clientX : e.clientX;
       const cy = e.touches ? e.touches[0].clientY : e.clientY;
 
       if (dragging && selectedElement) {
         const wPos = getWorldPos(cx, cy);
-        // ズレを引いた位置に更新（掴んだ場所を持ったまま移動）
         selectedElement.x = wPos.x - dragOffset.x;
         selectedElement.y = wPos.y - dragOffset.y;
         drawScene();
       } else if (draggingCamera) {
+        const rect = canvas.getBoundingClientRect();
         camera.x = (cx - rect.left) - dragOffset.x;
         camera.y = (cy - rect.top) - dragOffset.y;
         drawScene();
       }
     });
 
-    canvas.addEventListener('pointerup', () => { dragging = false; draggingCamera = false; });
-    canvas.addEventListener('pointerleave', () => { dragging = false; draggingCamera = false; });
+    canvas.addEventListener('pointerup', e => { 
+        dragging = false; draggingCamera = false; 
+        if (!e.touches || e.touches.length < 2) initialPinchDist = null;
+    });
+    canvas.addEventListener('pointerleave', () => { dragging = false; draggingCamera = false; initialPinchDist = null; });
+
+    document.getElementById('btnAlignArrows').onclick = () => {
+      const cx = 0 - camera.x; const cy = 0 - camera.y;
+      const arrows = elements.filter(e => e.category === 'arrow');
+      if (arrows.length === 0) return;
+      const angleStep = 360 / arrows.length;
+      arrows.forEach((arr, i) => { arr.x = cx; arr.y = cy; arr.rotation = i * angleStep; });
+      elements.filter(e => e.category !== 'arrow').forEach(e => { e.x = cx; e.y = cy; });
+      if(selectedElement) selectElement(selectedElement);
+      drawScene();
+    };
 
     setTimeout(resizeCanvas, 100);
   </script>
